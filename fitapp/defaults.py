@@ -32,3 +32,7 @@ FITAPP_ERROR_TEMPLATE = 'fitapp/error.html'
 # called with the request as the only parameter to get the final value for the
 # message.
 FITAPP_DECORATOR_MESSAGE = 'This page requires Fitbit integration.'
+
+# Whether or not a user must be authenticated in order to hit the login,
+# logout, error, and complete views.
+FITAPP_LOGIN_REQUIRED = True

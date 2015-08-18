@@ -29,7 +29,28 @@ except ImportError:  # Python 3
     STRING_TYPES = [str]
 
 
-@login_required
+class conditional_decorator:
+    """
+    Code taken from:
+    http://stackoverflow.com/questions/10724854/how-to-do-a-conditional-decorator-in-python-2-6
+
+    usage:
+    @conditional_decorator(timeit, doing_performance_analysis)
+    def foo():
+        time.sleep(2)
+    """
+    def __init__(self, dec, condition):
+        self.decorator = dec
+        self.condition = condition
+
+    def __call__(self, func):
+        if not self.condition:
+            # Return the function unchanged, not decorated.
+            return func
+        return self.decorator(func)
+
+
+@conditional_decorator(login_required, utils.get_setting('FITAPP_LOGIN_REQUIRED'))
 def login(request):
     """
     Begins the OAuth authentication process by obtaining a Request Token from
@@ -59,7 +80,7 @@ def login(request):
     return redirect(token_url)
 
 
-@login_required
+@conditional_decorator(login_required, utils.get_setting('FITAPP_LOGIN_REQUIRED'))
 def complete(request):
     """
     After the user authorizes us, Fitbit sends a callback to this URL to
@@ -144,7 +165,7 @@ def create_fitbit_session(sender, request, user, **kwargs):
                 pass
 
 
-@login_required
+@conditional_decorator(login_required, utils.get_setting('FITAPP_LOGIN_REQUIRED'))
 def error(request):
     """
     The user is redirected to this view if we encounter an error acquiring
@@ -170,7 +191,7 @@ def error(request):
     return render(request, utils.get_setting('FITAPP_ERROR_TEMPLATE'), {})
 
 
-@login_required
+@conditional_decorator(login_required, utils.get_setting('FITAPP_LOGIN_REQUIRED'))
 def logout(request):
     """Forget this user's Fitbit credentials.
 
