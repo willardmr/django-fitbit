@@ -76,13 +76,21 @@ def complete(request):
     If :ref:`FITAPP_SUBSCRIBE` is set to True, add a subscription to user
     data at this time.
 
+    Requires the pk of the user or model that will be associated with fitapp
+    data to be inserted into request.session['fb_user_id'] prior to calling
+    the view.
+
     URL name:
         `fitbit-complete`
     """
+    user_model = UserFitbit.user.field.to
+
     fb = utils.create_fitbit()
     try:
         token = request.session.pop('token')
         verifier = request.GET.get('oauth_verifier')
+        fb_user_id = int(request.session.get('fb_user_id'))
+        user = user_model.objects.get(pk=fb_user_id)
     except KeyError:
         return redirect(reverse('fitbit-error'))
     try:
@@ -93,7 +101,7 @@ def complete(request):
     if UserFitbit.objects.filter(fitbit_user=fb.client.user_id).exists():
         return redirect(reverse('fitbit-error'))
 
-    fbuser, _ = UserFitbit.objects.get_or_create(user=request.user)
+    fbuser, _ = UserFitbit.objects.get_or_create(user=user)
     fbuser.auth_token = fb.client.resource_owner_key
     fbuser.auth_secret = fb.client.resource_owner_secret
     fbuser.fitbit_user = fb.client.user_id
@@ -172,7 +180,12 @@ def logout(request):
     URL name:
         `fitbit-logout`
     """
-    user = request.user
+    user_model = UserFitbit.user.field.to
+    try:
+        fb_user_id = request.session.get('fb_user_id')
+        user = user_model.objects.get(pk=fb_user_id)
+    except KeyError:
+        return redirect(reverse('fitbit-error'))
     try:
         fbuser = user.userfitbit
     except UserFitbit.DoesNotExist:
@@ -298,6 +311,9 @@ def get_data(request, category, resource):
     retrieve data from either a range of dates, with specific start and end
     days, or from a time period ending on a specific date.
 
+    Requires the pk of the user or model that is associated with the fitapp data
+    to be inserted into request.session['fb_user_id'] prior to calling the view.
+
     The two parameters, category and resource, determine which type of data
     to retrieve. The category parameter can be one of: foods, activities,
     sleep, and body. It's the first part of the path in the items listed at
@@ -352,6 +368,13 @@ def get_data(request, category, resource):
     URL name:
         `fitbit-data`
     """
+    user_model = UserFitbit.user.field.to
+
+    try:
+        fb_user_id = int(request.session.get('fb_user_id'))
+        user = user_model.objects.get(pk=fb_user_id)
+    except KeyError:
+        return make_response(102)
 
     # Manually check that user is logged in and integrated with Fitbit.
     user = request.user
