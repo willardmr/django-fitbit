@@ -1,6 +1,7 @@
 from django import forms
 
 from . import utils
+from . import models
 
 
 INPUT_FORMATS = ['%Y-%m-%d']
@@ -35,3 +36,12 @@ class RangeForm(forms.Form):
                 'base_date': self.cleaned_data['base_date'],
                 'end_date': self.cleaned_data['end_date'],
             }
+
+
+class UserFitbitForm(forms.Form):
+    """
+    This form is used for associating a user to a UserFitbit via the Django
+    admin interface.
+    """
+    user = forms.ModelChoiceField(queryset=models.UserFitbit.
+                                  user.field.rel.to.objects.all())
