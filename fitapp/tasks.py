@@ -76,7 +76,8 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
         for fbuser in fbusers:
             data = utils.get_fitbit_data(fbuser, _type, **dates)
             if utils.get_setting('FITAPP_GET_INTRADAY'):
-                tz_offset = utils.get_fitbit_profile(fbuser, 'offsetFromUTCMillis')
+                tz_offset = utils.get_fitbit_profile(fbuser,
+                                                     'offsetFromUTCMillis')
                 tz_offset = tz_offset / 3600 / 1000  # Converted to hours
             for datum in data:
                 # Create new record or update existing record
@@ -94,8 +95,8 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                         # the server
                         get_intraday_data.apply_async(
                             (fbuser.fitbit_user, _type.category,
-                             _type.resource, tz_offset),
-                            {'date': date}, countdown=(2 * i))
+                             _type.resource, date, tz_offset),
+                            countdown=(2 * i))
                 tsd, created = TimeSeriesData.objects.get_or_create(
                     user=fbuser.user, resource_type=_type, date=date,
                     intraday=False)
