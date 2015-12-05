@@ -13,6 +13,11 @@ FITAPP_LOGOUT_REDIRECT = '/'
 # By default, don't subscribe to user data. Set this to true to subscribe.
 FITAPP_SUBSCRIBE = False
 
+# By default, don't try to get intraday time series data. See
+# https://dev.fitbit.com/docs/activity/#get-activity-intraday-time-series for
+# more info.
+FITAPP_GET_INTRADAY = False
+
 # The template to use when an unavoidable error occurs during Fitbit
 # integration.
 FITAPP_ERROR_TEMPLATE = 'fitapp/error.html'

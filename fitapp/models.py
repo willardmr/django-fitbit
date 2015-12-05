@@ -43,6 +43,7 @@ class TimeSeriesDataType(models.Model):
     )
     category = models.IntegerField(choices=CATEGORY_CHOICES)
     resource = models.CharField(max_length=128)
+    intraday_support = models.BooleanField(default=False)
 
     def __str__(self):
         return self.path()
@@ -63,11 +64,13 @@ class TimeSeriesData(models.Model):
 
     user = models.ForeignKey(UserModel)
     resource_type = models.ForeignKey(TimeSeriesDataType)
-    date = models.DateField()
+    date = models.DateTimeField()
     value = models.CharField(null=True, default=None, max_length=32)
+    intraday = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ('user', 'resource_type', 'date')
+        unique_together = ('user', 'resource_type', 'date', 'intraday')
+        get_latest_by = 'date'
 
     def string_date(self):
         return self.date.strftime('%Y-%m-%d')

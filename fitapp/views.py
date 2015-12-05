@@ -114,7 +114,8 @@ def complete(request):
             SUBSCRIBER_ID = utils.get_setting('FITAPP_SUBSCRIBER_ID')
         except ImproperlyConfigured:
             return redirect(reverse('fitbit-error'))
-        subscribe.apply_async((fbuser.fitbit_user, SUBSCRIBER_ID), countdown=5)
+        subscribe.apply_async((fbuser.fitbit_user, str(SUBSCRIBER_ID)),
+                              countdown=5)
         # Create tasks for all data in all data types
         for i, _type in enumerate(TimeSeriesDataType.objects.all()):
             # Delay execution for a few seconds to speed up response
