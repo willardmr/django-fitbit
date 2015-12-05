@@ -9,14 +9,22 @@ from django.db import models, migrations
 fixture_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../fixtures'))
 fixture_filename = 'initial_data.json'
 
-def load_fixture(apps, schema_editor):
-    fixture_file = os.path.join(fixture_dir, fixture_filename)
 
+def load_fixture(apps, schema_editor):
+    # Monkey-patch the apps registry used by serializers
+    original_apps = serializers.python.apps
+    serializers.python.apps = apps
+
+    fixture_file = os.path.join(fixture_dir, fixture_filename)
     fixture = open(fixture_file, 'rb')
     objects = serializers.deserialize('json', fixture, ignorenonexistent=True)
     for obj in objects:
         obj.save()
     fixture.close()
+
+    # Restore the apps registry used by serializers
+    serializers.python.apps = original_apps
+
 
 def unload_fixture(apps, schema_editor):
     "Brutally deleting all entries for this model..."
