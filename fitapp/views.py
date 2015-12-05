@@ -83,7 +83,7 @@ def complete(request):
     URL name:
         `fitbit-complete`
     """
-    user_model = UserFitbit.user.field.to
+    user_model = UserFitbit.user.field.rel.to
 
     fb = utils.create_fitbit()
     try:
@@ -180,7 +180,7 @@ def logout(request):
     URL name:
         `fitbit-logout`
     """
-    user_model = UserFitbit.user.field.to
+    user_model = UserFitbit.user.field.rel.to
     try:
         fb_user_id = request.session.get('fb_user_id')
         user = user_model.objects.get(pk=fb_user_id)
@@ -368,7 +368,7 @@ def get_data(request, category, resource):
     URL name:
         `fitbit-data`
     """
-    user_model = UserFitbit.user.field.to
+    user_model = UserFitbit.user.field.rel.to
 
     try:
         fb_user_id = int(request.session.get('fb_user_id'))
