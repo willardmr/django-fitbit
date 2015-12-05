@@ -210,15 +210,19 @@ def update(request):
 
     Loop through the updates and create celery tasks to get the data.
     More information here:
-    https://wiki.fitbit.com/display/API/Fitbit+Subscriptions+API
+    https://dev.fitbit.com/docs/subscriptions/
+
+    The updates can come in two ways (via POST):
+      1. A json body in a POST request
+      2. A json file in a form POST
+
+    A GET request indicates a subscription verification. More information here:
+    https://dev.fitbit.com/docs/subscriptions/#verify-a-subscriber
 
     URL name:
         `fitbit-update`
     """
 
-    # The updates can come in two ways:
-    # 1. A json body in a POST request
-    # 2. A json file in a form POST
     if request.method == 'POST':
         try:
             body = request.body
@@ -240,8 +244,15 @@ def update(request):
             return redirect(reverse('fitbit-error'))
 
         return HttpResponse(status=204)
-
-    # if someone enters the url into the browser, raise a 404
+    # A verification request
+    elif request.method == 'GET':
+        # Requests from Fitbit have 'verify' parameter
+        request_code = request.GET.get('verify', '')
+        if not request_code:
+            raise Http404
+        known_code = utils.get_setting('FITAPP_VERIFICATION_CODE')
+        if request_code == known_code:
+            return HttpResponse(status=204)
     raise Http404
 
 

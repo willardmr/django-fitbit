@@ -18,6 +18,11 @@ FITAPP_SUBSCRIBE = False
 # more info.
 FITAPP_GET_INTRADAY = False
 
+# The verification code used by Fitbit to verify subscription endpoints. Only
+# needed temporarily. See:
+# https://dev.fitbit.com/docs/subscriptions/#verify-a-subscriber
+FITAPP_VERIFICATION_CODE = None
+
 # The template to use when an unavoidable error occurs during Fitbit
 # integration.
 FITAPP_ERROR_TEMPLATE = 'fitapp/error.html'
