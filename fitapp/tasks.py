@@ -1,3 +1,4 @@
+from datetime import timedelta
 import logging
 import sys
 
@@ -5,6 +6,7 @@ from celery import shared_task
 from celery.exceptions import Ignore, Reject
 from dateutil import parser
 from django.core.cache import cache
+from django.utils.timezone import utc
 from fitbit.exceptions import HTTPBadRequest, HTTPTooManyRequests
 
 from . import utils
@@ -49,7 +51,7 @@ def unsubscribe(*args, **kwargs):
 
 @shared_task
 def get_time_series_data(fitbit_user, cat, resource, date=None):
-    """ Get the user's time series data """
+    """ Get the user's time series data, saved in UTC """
 
     try:
         _type = TimeSeriesDataType.objects.get(category=cat, resource=resource)
@@ -73,6 +75,10 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
     try:
         for fbuser in fbusers:
             data = utils.get_fitbit_data(fbuser, _type, **dates)
+            if utils.get_setting('FITAPP_GET_INTRADAY'):
+                tz_offset = utils.get_fitbit_profile(fbuser,
+                                                     'offsetFromUTCMillis')
+                tz_offset = tz_offset / 3600 / 1000  # Converted to hours
             for datum in data:
                 # Create new record or update existing record
                 date = parser.parse(datum['dateTime'])
@@ -89,8 +95,8 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                         # the server
                         get_intraday_data.apply_async(
                             (fbuser.fitbit_user, _type.category,
-                             _type.resource,),
-                            {'date': date}, countdown=(2 * i))
+                             _type.resource, date, tz_offset),
+                            countdown=(2 * i))
                 tsd, created = TimeSeriesData.objects.get_or_create(
                     user=fbuser.user, resource_type=_type, date=date,
                     intraday=False)
@@ -120,9 +126,10 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
 
 
 @shared_task
-def get_intraday_data(fitbit_user, cat, resource, date):
+def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
     """
-    Get the user's intraday data for a specified date
+    Get the user's intraday data for a specified date, convert to UTC prior to
+    saving.
 
     The Fitbit API stipulates that intraday data can only be retrieved for one
     day at a time.
@@ -163,13 +170,15 @@ def get_intraday_data(fitbit_user, cat, resource, date):
             logger.info("Date for intraday task: {}".format(date))
             for minute in intraday:
                 datetime = parser.parse(minute['time'], default=date)
+                utc_datetime = datetime + timedelta(hours=tz_offset)
+                utc_datetime = utc_datetime.replace(tzinfo=utc)
                 value = minute['value']
                 # Don't create unnecessary records
                 if int(float(value)) == 0:
                     continue
                 # Create new record or update existing
                 tsd, created = TimeSeriesData.objects.get_or_create(
-                    user=fbuser.user, resource_type=_type, date=datetime,
+                    user=fbuser.user, resource_type=_type, date=utc_datetime,
                     intraday=True)
                 tsd.value = value
                 tsd.save()

@@ -60,6 +60,9 @@ class TimeSeriesData(models.Model):
     """
     The purpose of this model is to store Fitbit user data obtained from their
     time series API (https://wiki.fitbit.com/display/API/API-Get-Time-Series).
+
+    Intraday data only: user's timezone is retrieved and used to convert data to
+    UTC prior to saving.
     """
 
     user = models.ForeignKey(UserModel)
