@@ -70,6 +70,18 @@ def get_fitbit_data(fbuser, resource_type, base_date=None, period=None,
     return data[resource_path.replace('/', '-')]
 
 
+def get_fitbit_profile(fbuser, key=None):
+    """
+    Creates a Fitbit API instance and retrieves a user's profile.
+    """
+    fb = create_fitbit(**fbuser.get_user_data())
+    data = fb.user_profile_get()
+    data = data['user']
+    if key:
+        return data[key]
+    return data
+
+
 def get_setting(name, use_defaults=True):
     """Retrieves the specified setting from the settings file.
 
