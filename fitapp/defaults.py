@@ -13,6 +13,11 @@ FITAPP_LOGOUT_REDIRECT = '/'
 # By default, don't subscribe to user data. Set this to true to subscribe.
 FITAPP_SUBSCRIBE = False
 
+# The verification code used by Fitbit to verify subscription endpoints. Only
+# needed temporarily. See:
+# https://dev.fitbit.com/docs/subscriptions/#verify-a-subscriber
+FITAPP_VERIFICATION_CODE = None
+
 # The template to use when an unavoidable error occurs during Fitbit
 # integration.
 FITAPP_ERROR_TEMPLATE = 'fitapp/error.html'
