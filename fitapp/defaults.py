@@ -36,3 +36,7 @@ FITAPP_DECORATOR_MESSAGE = 'This page requires Fitbit integration.'
 # Whether or not a user must be authenticated in order to hit the login,
 # logout, error, and complete views.
 FITAPP_LOGIN_REQUIRED = True
+
+# Whether or not intraday data points with step values of 0 are saved
+# to the database.
+FITAPP_SAVE_INTRADAY_ZERO_VALUES = False
