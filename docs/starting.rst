@@ -25,7 +25,7 @@ Getting started
 4. Add settings for :ref:`FITAPP_CONSUMER_KEY` and
    :ref:`FITAPP_CONSUMER_SECRET`::
 
-    FITAPP_CONSUMER_KEY = 'abcdefg123456'
+    FITAPP_CONSUMER_KEY = '9898XH'
     FITAPP_CONSUMER_SECRET = 'abcdefg123456'
 
 5. If you need to change the defaults, add settings for
@@ -44,3 +44,7 @@ Getting started
 
 8. To get step data for a user from a web page, use the AJAX
    :py:func:`fitapp.views.get_steps` view.
+
+9. If you are using sqlite, you will want to create a celery configuration that
+   prevents the fitapp celery tasks from being executed concurrently. If you
+   are using any other database type, you can skip this step.

@@ -19,9 +19,11 @@ def create_fitbit(consumer_key=None, consumer_secret=None, **kwargs):
         consumer_secret = get_setting('FITAPP_CONSUMER_SECRET')
 
     if consumer_key is None or consumer_secret is None:
-        raise ImproperlyConfigured("Consumer key and consumer secret cannot "
-                "be null, and must be explicitly specified or set in your "
-                "Django settings")
+        raise ImproperlyConfigured(
+            "Consumer key and consumer secret cannot "
+            "be null, and must be explicitly specified or set in your "
+            "Django settings"
+        )
 
     return Fitbit(consumer_key, consumer_secret, **kwargs)
 
@@ -65,6 +67,13 @@ def get_fitbit_data(fbuser, resource_type, base_date=None, period=None,
     data = fb.time_series(resource_path, user_id=fbuser.fitbit_user,
                           period=period, base_date=base_date,
                           end_date=end_date)
+
+    # Update the token if necessary. We are making sure we have a valid
+    # access_token and refresh_token next time we request Fitbit data
+    if fb.client.token['access_token'] != fbuser.access_token:
+        fbuser.access_token = fb.client.token['access_token']
+        fbuser.refresh_token = fb.client.token['refresh_token']
+        fbuser.save()
     if return_all:
         return data
     return data[resource_path.replace('/', '-')]

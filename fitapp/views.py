@@ -1,4 +1,4 @@
-import json
+import simplejson as json
 
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
@@ -6,13 +6,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.signals import user_logged_in
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import reverse
-from django.db import IntegrityError
 from django.dispatch import receiver
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET
+from six import string_types
 
 from fitbit.exceptions import (HTTPUnauthorized, HTTPForbidden, HTTPConflict,
                                HTTPServerError)
@@ -21,12 +21,6 @@ from . import forms
 from . import utils
 from .models import UserFitbit, TimeSeriesData, TimeSeriesDataType
 from .tasks import get_time_series_data, subscribe, unsubscribe
-
-try:
-    from types import StringType, UnicodeType
-    STRING_TYPES = [StringType, UnicodeType]
-except ImportError:  # Python 3
-    STRING_TYPES = [str]
 
 
 class conditional_decorator:
@@ -74,9 +68,8 @@ def login(request):
 
     callback_uri = request.build_absolute_uri(reverse('fitbit-complete'))
     fb = utils.create_fitbit(callback_uri=callback_uri)
-    token = fb.client.fetch_request_token()
-    token_url = fb.client.authorize_token_url()
-    request.session['token'] = token
+    token_url, code = fb.client.authorize_token_url(redirect_uri=callback_uri)
+
     return redirect(token_url)
 
 
@@ -106,26 +99,28 @@ def complete(request):
     """
     user_model = UserFitbit.user.field.rel.to
 
-    fb = utils.create_fitbit()
     try:
-        token = request.session.pop('token')
-        verifier = request.GET.get('oauth_verifier')
+        code = request.GET['code']
+    except KeyError:
+        return redirect(reverse('fitbit-error'))
+
+    callback_uri = request.build_absolute_uri(reverse('fitbit-complete'))
+    fb = utils.create_fitbit(callback_uri=callback_uri)
+    try:
+        token = fb.client.fetch_access_token(code, callback_uri)
+        access_token = token['access_token']
         fb_user_id = int(request.session.get('fb_user_id'))
         user = user_model.objects.get(pk=fb_user_id)
     except KeyError:
         return redirect(reverse('fitbit-error'))
-    try:
-        fb.client.fetch_access_token(verifier, token=token)
-    except:
+
+    if UserFitbit.objects.filter(fitbit_user=fitbit_user).exists():
         return redirect(reverse('fitbit-error'))
 
-    if UserFitbit.objects.filter(fitbit_user=fb.client.user_id).exists():
-        return redirect(reverse('fitbit-error'))
-
-    fbuser, _ = UserFitbit.objects.get_or_create(user=user)
-    fbuser.auth_token = fb.client.resource_owner_key
-    fbuser.auth_secret = fb.client.resource_owner_secret
+    fbuser, _ = UserFitbit.objects.get_or_create(user)
+    fbuser.access_token = access_token
     fbuser.fitbit_user = fb.client.user_id
+    fbuser.refresh_token = token['refresh_token']
     fbuser.save()
 
     # Add the Fitbit user info to the session
@@ -227,7 +222,7 @@ def logout(request):
 
 @csrf_exempt
 def update(request):
-    """Receive notification from Fitbit.
+    """Receive notification from Fitbit or verify subscriber endpoint.
 
     Loop through the updates and create celery tasks to get the data.
     More information here:
@@ -240,6 +235,15 @@ def update(request):
     A GET request indicates a subscription verification. More information here:
     https://dev.fitbit.com/docs/subscriptions/#verify-a-subscriber
 
+    For verification, we expect two GET requests:
+    1. Contains a verify query param containing the verification code we
+       have specified in the ``FITAPP_VERIFICATION_CODE`` setting. We should
+       respond with a HTTP 204 code.
+    2. Contains a verify query param containing a purposefully invalid
+       verification code. We should respond with a 404
+    More information here:
+    https://dev.fitbit.com/docs/subscriptions/#verify-a-subscriber
+
     URL name:
         `fitbit-update`
     """
@@ -250,6 +254,10 @@ def update(request):
             if request.FILES and 'updates' in request.FILES:
                 body = request.FILES['updates'].read()
             updates = json.loads(body.decode('utf8'))
+        except json.JSONDecodeError:
+            raise Http404
+
+        try:
             # Create a celery task for each data type in the update
             for update in updates:
                 cat = getattr(TimeSeriesDataType, update['collectionType'])
@@ -261,19 +269,18 @@ def update(request):
                         (update['ownerId'], _type.category, _type.resource,),
                         {'date': parser.parse(update['date'])},
                         countdown=(2 * i))
-        except:
-            return redirect(reverse('fitbit-error'))
+        except (KeyError, ValueError, OverflowError):
+            raise Http404
 
         return HttpResponse(status=204)
-    # A verification request
     elif request.method == 'GET':
-        # Requests from Fitbit have 'verify' parameter
-        request_code = request.GET.get('verify', '')
-        if not request_code:
-            raise Http404
-        known_code = utils.get_setting('FITAPP_VERIFICATION_CODE')
-        if request_code == known_code:
+        # Verify fitbit subscriber endpoints
+        verification_code = utils.get_setting('FITAPP_VERIFICATION_CODE')
+        verify = request.GET.get('verify', None)
+        if verify and verify == verification_code:
             return HttpResponse(status=204)
+
+    # if someone enters the url into the browser, raise a 404
     raise Http404
 
 
@@ -305,7 +312,7 @@ def normalize_date_range(request, fitbit_data):
     else:
         period = fitbit_data['period']
         if period != 'max':
-            if type(base_date) in STRING_TYPES:
+            if isinstance(base_date, string_types):
                 start = parser.parse(base_date)
             else:
                 start = base_date
