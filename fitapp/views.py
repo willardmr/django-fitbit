@@ -111,15 +111,16 @@ def complete(request):
         access_token = token['access_token']
         fb_user_id = int(request.session.get('fb_user_id'))
         user = user_model.objects.get(pk=fb_user_id)
+        fitbit_user = token['user_id']
     except KeyError:
         return redirect(reverse('fitbit-error'))
 
-    if UserFitbit.objects.filter(fitbit_user=fitbit_user).exists():
+    if UserFitbit.objects.filter(user=user).exists():
         return redirect(reverse('fitbit-error'))
 
-    fbuser, _ = UserFitbit.objects.get_or_create(user)
+    fbuser, _ = UserFitbit.objects.get_or_create(user=user)
     fbuser.access_token = access_token
-    fbuser.fitbit_user = fb.client.user_id
+    fbuser.fitbit_user = fitbit_user
     fbuser.refresh_token = token['refresh_token']
     fbuser.save()
 
@@ -281,7 +282,7 @@ def update(request):
             return HttpResponse(status=204)
 
     # if someone enters the url into the browser, raise a 404
-    raise Http404
+    return HttpResponse(status=404)
 
 
 def make_response(code=None, objects=[]):
