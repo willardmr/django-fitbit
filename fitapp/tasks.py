@@ -87,7 +87,7 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                 if utils.get_setting('FITAPP_GET_INTRADAY'):
                     tz_offset = utils.get_fitbit_profile(fbuser,
                                                          'offsetFromUTCMillis')
-                    tz_offset = tz_offset / 3600 / 1000  # Converted to hours
+                    tz_offset = tz_offset / 3600 / 1000 * -1  # Converted to positive hours
                 for datum in data:
                     # Create new record or update existing record
                     date = parser.parse(datum['dateTime'])
