@@ -103,7 +103,8 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                                 _type.resource, date, tz_offset),
                                 countdown=(2 * i))
                     tsd, created = TimeSeriesData.objects.get_or_create(
-                        user=fbuser.user, resource_type=_type, date=date)
+                        user=fbuser.user, resource_type=_type, date=date,
+                        intraday=False)
                     tsd.value = datum['value']
                     tsd.save()
             # Release the lock
