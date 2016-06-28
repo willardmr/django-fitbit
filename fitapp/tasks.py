@@ -161,34 +161,35 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
     fbusers = UserFitbit.objects.filter(fitbit_user=fitbit_user)
     dates = {'base_date': date, 'period': '1d'}
     try:
-        for fbuser in fbusers:
-            data = utils.get_fitbit_data(fbuser, _type, return_all=True,
-                                         **dates)
-            resource_path = _type.path().replace('/', '-')
-            key = resource_path + "-intraday"
-            if data[key]['datasetType'] != 'minute':
-                logger.exception("The resource returned is not "
-                                 "minute-level data")
-                raise Reject(sys.exc_info()[1], requeue=False)
-            intraday = data[key]['dataset']
-            logger.info("Date for intraday task: {}".format(date))
-            for minute in intraday:
-                datetime = parser.parse(minute['time'], default=date)
-                utc_datetime = datetime + timedelta(hours=tz_offset)
-                utc_datetime = utc_datetime.replace(tzinfo=utc)
-                value = minute['value']
-                # Don't create unnecessary records
-                if not utils.get_setting('FITAPP_SAVE_INTRADAY_ZERO_VALUES'):
-                    if int(float(value)) == 0:
-                        continue
-                # Create new record or update existing
-                tsd, created = TimeSeriesData.objects.get_or_create(
-                    user=fbuser.user, resource_type=_type, date=utc_datetime,
-                    intraday=True)
-                tsd.value = value
-                tsd.save()
-        # Release the lock
-        cache.delete(lock_id)
+        with transaction.atomic():
+            for fbuser in fbusers:
+                data = utils.get_fitbit_data(fbuser, _type, return_all=True,
+                                             **dates)
+                resource_path = _type.path().replace('/', '-')
+                key = resource_path + "-intraday"
+                if data[key]['datasetType'] != 'minute':
+                    logger.exception("The resource returned is not "
+                                     "minute-level data")
+                    raise Reject(sys.exc_info()[1], requeue=False)
+                intraday = data[key]['dataset']
+                logger.info("Date for intraday task: {}".format(date))
+                for minute in intraday:
+                    datetime = parser.parse(minute['time'], default=date)
+                    utc_datetime = datetime + timedelta(hours=tz_offset)
+                    utc_datetime = utc_datetime.replace(tzinfo=utc)
+                    value = minute['value']
+                    # Don't create unnecessary records
+                    if not utils.get_setting('FITAPP_SAVE_INTRADAY_ZERO_VALUES'):
+                        if int(float(value)) == 0:
+                            continue
+                    # Create new record or update existing
+                    tsd, created = TimeSeriesData.objects.get_or_create(
+                        user=fbuser.user, resource_type=_type, date=utc_datetime,
+                        intraday=True)
+                    tsd.value = value
+                    tsd.save()
+            # Release the lock
+            cache.delete(lock_id)
     except HTTPTooManyRequests:
         # We have hit the rate limit for the user, retry when it's reset,
         # according to the reply from the failing API call
