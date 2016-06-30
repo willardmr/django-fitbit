@@ -13,7 +13,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.sessions',
     'fitapp',
-    'fitapp.tests'
 ]
 SECRET_KEY = 'something-secret'
 ROOT_URLCONF = 'fitapp.urls'
@@ -24,7 +23,7 @@ FITAPP_SUBSCRIBE = True
 FITAPP_SUBSCRIBER_ID = 1
 FITAPP_GET_INTRADAY = True
 FITAPP_LOGIN_REQUIRED = False
-FITAPP_USER_MODEL = 'fitapp.tests.TestUserModel'
+FITAPP_USER_MODEL = 'fitapp.TestUserModel'
 
 LOGGING = {
     'version': 1,

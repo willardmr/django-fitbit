@@ -15,7 +15,7 @@ from django.test import TestCase
 
 from fitbit.api import Fitbit
 
-from fitapp.models import UserFitbit
+from fitapp.models import UserFitbit, TestUserModel
 
 
 class MockClient(object):
@@ -57,8 +57,9 @@ class FitappTestBase(TestCase):
     def setUp(self):
         self.username = self.random_string(25)
         self.password = self.random_string(25)
-        self.user = self.create_user(username=self.username,
+        self.login_user = self.create_user(username=self.username,
                                      password=self.password)
+        self.user = TestUserModel.objects.create()
         self.fbuser = self.create_userfitbit(user=self.user)
 
         self.client.login(username=self.username, password=self.password)
@@ -71,13 +72,7 @@ class FitappTestBase(TestCase):
         return ''.join([random.choice(chars) for i in range(length)])
 
     def create_user(self, username=None, email=None, password=None, **kwargs):
-        username = username or self.random_string(25)
-        email = email or '{0}@{1}.com'.format(self.random_string(25),
-                                              self.random_string(10))
-        password = password or self.random_string(25)
-        user = User.objects.create_user(username, email, password)
-        User.objects.filter(pk=user.pk).update(**kwargs)
-        user = User.objects.get(pk=user.pk)
+        user = TestUserModel.objects.create()
         return user
 
     def create_userfitbit(self, **kwargs):

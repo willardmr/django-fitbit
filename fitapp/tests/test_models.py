@@ -33,4 +33,5 @@ class TestFitappModels(FitappTestBase):
                          'activities/steps')
 
 class TestUserModel(models.Model):
-    pass
+    class Meta:
+        app_label = 'fitapp.tests'

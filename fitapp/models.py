@@ -78,3 +78,7 @@ class TimeSeriesData(models.Model):
 
     def string_date(self):
         return self.date.strftime('%Y-%m-%d')
+
+
+class TestUserModel(models.Model):
+    pass

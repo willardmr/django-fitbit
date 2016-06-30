@@ -252,7 +252,6 @@ def update(request):
     URL name:
         `fitbit-update`
     """
-
     if request.method == 'POST':
         try:
             body = request.body
@@ -424,7 +423,6 @@ def get_data(request, category, resource):
         return make_response(101)
 
     # Manually check that user is logged in and integrated with Fitbit.
-    user = request.user
     try:
         resource_type = TimeSeriesDataType.objects.get(
             category=getattr(TimeSeriesDataType, category), resource=resource)
@@ -432,8 +430,8 @@ def get_data(request, category, resource):
         return make_response(104)
 
     fitapp_subscribe = utils.get_setting('FITAPP_SUBSCRIBE')
-    if not user.is_authenticated() or not user.is_active:
-        return make_response(101)
+    #if not user.is_authenticated() or not user.is_active:
+    #    return make_response(101)
     if not fitapp_subscribe and not utils.is_integrated(user):
         return make_response(102)
 
