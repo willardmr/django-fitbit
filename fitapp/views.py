@@ -114,8 +114,10 @@ def complete(request):
         fitbit_user = token['user_id']
     except KeyError:
         return redirect(reverse('fitbit-error'))
+    except TypeError:
+        return redirect(reverse('fitbit-error'))
 
-    if UserFitbit.objects.filter(user=user).exists():
+    if UserFitbit.objects.filter(fitbit_user=fitbit_user).exists():
         return redirect(reverse('fitbit-error'))
 
     fbuser, _ = UserFitbit.objects.get_or_create(user=user)
@@ -131,7 +133,7 @@ def complete(request):
             SUBSCRIBER_ID = utils.get_setting('FITAPP_SUBSCRIBER_ID')
         except ImproperlyConfigured:
             return redirect(reverse('fitbit-error'))
-        subscribe.apply_async((fbuser.fitbit_user, str(SUBSCRIBER_ID)),
+        subscribe.apply_async((fbuser.fitbit_user, SUBSCRIBER_ID),
                               countdown=5)
         # Create tasks for all data in all data types
         for i, _type in enumerate(TimeSeriesDataType.objects.all()):
@@ -203,6 +205,8 @@ def logout(request):
         fb_user_id = request.session.get('fb_user_id')
         user = user_model.objects.get(pk=fb_user_id)
     except KeyError:
+        return redirect(reverse('fitbit-error'))
+    except user_model.DoesNotExist:
         return redirect(reverse('fitbit-error'))
     try:
         fbuser = user.userfitbit
@@ -416,6 +420,8 @@ def get_data(request, category, resource):
         user = user_model.objects.get(pk=fb_user_id)
     except KeyError:
         return make_response(102)
+    except TypeError:
+        return make_response(101)
 
     # Manually check that user is logged in and integrated with Fitbit.
     user = request.user

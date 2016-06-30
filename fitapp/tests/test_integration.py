@@ -274,7 +274,10 @@ class TestErrorView(FitappTestBase):
         """User must be logged in to access Error view."""
         self.client.logout()
         response = self._get()
-        self.assertEqual(response.status_code, 302)
+        if utils.get_setting('FITAPP_LOGIN_REQUIRED'):
+            self.assertEqual(response.status_code, 302)
+        else:
+            self.assertEqual(response.status_code, 200)
 
     def test_unintegrated(self):
         """No Fitbit credentials required to access Error view."""

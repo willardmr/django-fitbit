@@ -1,5 +1,5 @@
 from fitapp.models import TimeSeriesDataType
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 
 from .base import FitappTestBase
 
@@ -31,3 +31,6 @@ class TestFitappModels(FitappTestBase):
         assert hasattr(TimeSeriesDataType, 'foods')
         self.assertEqual(str(TimeSeriesDataType.objects.get(resource='steps')),
                          'activities/steps')
+
+class TestUserModel(models.Model):
+    pass

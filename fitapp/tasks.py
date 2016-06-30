@@ -81,7 +81,6 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                 dates = {'base_date': 'today', 'period': 'max'}
             if date:
                 dates = {'base_date': date, 'end_date': date}
-
             for fbuser in fbusers:
                 data = utils.get_fitbit_data(fbuser, _type, **dates)
                 if utils.get_setting('FITAPP_GET_INTRADAY'):

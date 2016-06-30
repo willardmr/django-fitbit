@@ -178,8 +178,10 @@ class TestRetrievalTask(FitappTestBase):
         self.assertEqual(get_fitbit_data.call_count, 0)
         self.assertEqual(TimeSeriesData.objects.count(), 0)
 
+    @patch('fitapp.utils.get_fitbit_profile')
     @patch('fitapp.utils.get_fitbit_data')
-    def test_subscription_update_too_many(self, get_fitbit_data):
+    def test_subscription_update_too_many(self, get_fitbit_data, get_fitbit_profile):
+        get_fitbit_profile.return_value = 0
         # Check that celery tasks get postponed if the rate limit is hit
         cat_id = getattr(TimeSeriesDataType, self.category)
         _type = TimeSeriesDataType.objects.filter(category=cat_id)[0]

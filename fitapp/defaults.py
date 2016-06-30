@@ -43,3 +43,6 @@ FITAPP_LOGIN_REQUIRED = True
 # Whether or not intraday data points with step values of 0 are saved
 # to the database.
 FITAPP_SAVE_INTRADAY_ZERO_VALUES = False
+
+# The default amount of data we pull for each user registered with this app
+FITAPP_DEFAULT_PERIOD = 'max'

@@ -62,6 +62,9 @@ class FitappTestBase(TestCase):
         self.fbuser = self.create_userfitbit(user=self.user)
 
         self.client.login(username=self.username, password=self.password)
+        session = self.client.session
+        session['fb_user_id'] = self.user.pk
+        session.save()
 
     def random_string(self, length=255, extra_chars=''):
         chars = ascii_letters + extra_chars
