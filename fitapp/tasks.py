@@ -97,10 +97,9 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                         for i, _type in enumerate(resources):
                             # Offset each call by 2 seconds so they don't bog down
                             # the server
-                            get_intraday_data.apply_async(
-                                (fbuser.fitbit_user, _type.category,
-                                _type.resource, date, tz_offset),
-                                countdown=(2 * i))
+                            get_intraday_data(
+                                fbuser.fitbit_user, _type.category,
+                                _type.resource, date, tz_offset)
                     tsd, created = TimeSeriesData.objects.get_or_create(
                         user=fbuser.user, resource_type=_type, date=date,
                         intraday=False)
@@ -129,7 +128,6 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
         raise Reject(exc, requeue=False)
 
 
-@shared_task
 def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
     """
     Get the user's intraday data for a specified date, convert to UTC prior to
@@ -151,12 +149,6 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
 
     # Create a lock so we don't try to run the same task multiple times
     sdat = date.strftime('%Y-%m-%d')
-    lock_id = '{0}-lock-intraday-{1}-{2}-{3}'.format(__name__, fitbit_user,
-                                                     _type, sdat)
-    if not cache.add(lock_id, 'true', LOCK_EXPIRE):
-        logger.debug('Already retrieving intraday %s data for date %s, user %s'
-                     % (_type, fitbit_user, sdat))
-        raise Ignore()
 
     fbusers = UserFitbit.objects.filter(fitbit_user=fitbit_user)
     dates = {'base_date': date, 'period': '1d'}
@@ -189,7 +181,6 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
                     tsd.value = value
                     tsd.save()
             # Release the lock
-            cache.delete(lock_id)
     except HTTPTooManyRequests:
         # We have hit the rate limit for the user, retry when it's reset,
         # according to the reply from the failing API call
