@@ -7,7 +7,6 @@ from celery.exceptions import Ignore, Reject
 from dateutil import parser
 from django.core.cache import cache
 from django.utils.timezone import utc
-from django.db import transaction
 from fitbit.exceptions import HTTPBadRequest, HTTPTooManyRequests
 
 from . import utils
@@ -69,45 +68,44 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
         raise Ignore()
 
     try:
-        with transaction.atomic():
-            # Block until we have exclusive update access to this UserFitbit, so
-            # that another process cannot step on us when we update tokens
-            fbusers = UserFitbit.objects.select_for_update().filter(
-                fitbit_user=fitbit_user)
-            default_period = utils.get_setting('FITAPP_DEFAULT_PERIOD')
-            if default_period:
-                dates = {'base_date': 'today', 'period':default_period}
-            else:
-                dates = {'base_date': 'today', 'period': 'max'}
-            if date:
-                dates = {'base_date': date, 'end_date': date}
-            for fbuser in fbusers:
-                data = utils.get_fitbit_data(fbuser, _type, **dates)
-                if utils.get_setting('FITAPP_GET_INTRADAY'):
-                    tz_offset = utils.get_fitbit_profile(fbuser,
-                                                         'offsetFromUTCMillis')
-                    tz_offset = tz_offset / 3600 / 1000 * -1  # Converted to positive hours
-                for datum in data:
-                    # Create new record or update existing record
-                    date = parser.parse(datum['dateTime'])
-                    if _type.intraday_support and \
-                            utils.get_setting('FITAPP_GET_INTRADAY'):
-                        resources = TimeSeriesDataType.objects.filter(
-                            intraday_support=True)
-                        for i, _type in enumerate(resources):
-                            # Offset each call by 2 seconds so they don't bog down
-                            # the server
-                            get_intraday_data.apply_async(
-                                (fbuser.fitbit_user, _type.category,
-                                _type.resource, date, tz_offset),
-                                countdown=(2 * i))
-                    tsd, created = TimeSeriesData.objects.get_or_create(
-                        user=fbuser.user, resource_type=_type, date=date,
-                        intraday=False)
-                    tsd.value = datum['value']
-                    tsd.save()
-            # Release the lock
-            cache.delete(lock_id)
+        # Block until we have exclusive update access to this UserFitbit, so
+        # that another process cannot step on us when we update tokens
+        fbusers = UserFitbit.objects.select_for_update().filter(
+            fitbit_user=fitbit_user)
+        default_period = utils.get_setting('FITAPP_DEFAULT_PERIOD')
+        if default_period:
+            dates = {'base_date': 'today', 'period':default_period}
+        else:
+            dates = {'base_date': 'today', 'period': 'max'}
+        if date:
+            dates = {'base_date': date, 'end_date': date}
+        for fbuser in fbusers:
+            data = utils.get_fitbit_data(fbuser, _type, **dates)
+            if utils.get_setting('FITAPP_GET_INTRADAY'):
+                tz_offset = utils.get_fitbit_profile(fbuser,
+                                                     'offsetFromUTCMillis')
+                tz_offset = tz_offset / 3600 / 1000 * -1  # Converted to positive hours
+            for datum in data:
+                # Create new record or update existing record
+                date = parser.parse(datum['dateTime'])
+                if _type.intraday_support and \
+                        utils.get_setting('FITAPP_GET_INTRADAY'):
+                    resources = TimeSeriesDataType.objects.filter(
+                        intraday_support=True)
+                    for i, _type in enumerate(resources):
+                        # Offset each call by 2 seconds so they don't bog down
+                        # the server
+                        get_intraday_data.apply_async(
+                            (fbuser.fitbit_user, _type.category,
+                            _type.resource, date, tz_offset),
+                            countdown=(2 * i))
+                tsd, created = TimeSeriesData.objects.get_or_create(
+                    user=fbuser.user, resource_type=_type, date=date,
+                    intraday=False)
+                tsd.value = datum['value']
+                tsd.save()
+        # Release the lock
+        cache.delete(lock_id)
     except HTTPTooManyRequests:
         # We have hit the rate limit for the user, retry when it's reset,
         # according to the reply from the failing API call
@@ -161,35 +159,34 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
     fbusers = UserFitbit.objects.filter(fitbit_user=fitbit_user)
     dates = {'base_date': date, 'period': '1d'}
     try:
-        with transaction.atomic():
-            for fbuser in fbusers:
-                data = utils.get_fitbit_data(fbuser, _type, return_all=True,
-                                             **dates)
-                resource_path = _type.path().replace('/', '-')
-                key = resource_path + "-intraday"
-                if data[key]['datasetType'] != 'minute':
-                    logger.exception("The resource returned is not "
-                                     "minute-level data")
-                    raise Reject(sys.exc_info()[1], requeue=False)
-                intraday = data[key]['dataset']
-                logger.info("Date for intraday task: {}".format(date))
-                for minute in intraday:
-                    datetime = parser.parse(minute['time'], default=date)
-                    utc_datetime = datetime + timedelta(hours=tz_offset)
-                    utc_datetime = utc_datetime.replace(tzinfo=utc)
-                    value = minute['value']
-                    # Don't create unnecessary records
-                    if not utils.get_setting('FITAPP_SAVE_INTRADAY_ZERO_VALUES'):
-                        if int(float(value)) == 0:
-                            continue
-                    # Create new record or update existing
-                    tsd, created = TimeSeriesData.objects.get_or_create(
-                        user=fbuser.user, resource_type=_type, date=utc_datetime,
-                        intraday=True)
-                    tsd.value = value
-                    tsd.save()
-            # Release the lock
-            cache.delete(lock_id)
+        for fbuser in fbusers:
+            data = utils.get_fitbit_data(fbuser, _type, return_all=True,
+                                         **dates)
+            resource_path = _type.path().replace('/', '-')
+            key = resource_path + "-intraday"
+            if data[key]['datasetType'] != 'minute':
+                logger.exception("The resource returned is not "
+                                 "minute-level data")
+                raise Reject(sys.exc_info()[1], requeue=False)
+            intraday = data[key]['dataset']
+            logger.info("Date for intraday task: {}".format(date))
+            for minute in intraday:
+                datetime = parser.parse(minute['time'], default=date)
+                utc_datetime = datetime + timedelta(hours=tz_offset)
+                utc_datetime = utc_datetime.replace(tzinfo=utc)
+                value = minute['value']
+                # Don't create unnecessary records
+                if not utils.get_setting('FITAPP_SAVE_INTRADAY_ZERO_VALUES'):
+                    if int(float(value)) == 0:
+                        continue
+                # Create new record or update existing
+                tsd, created = TimeSeriesData.objects.get_or_create(
+                    user=fbuser.user, resource_type=_type, date=utc_datetime,
+                    intraday=True)
+                tsd.value = value
+                tsd.save()
+        # Release the lock
+        cache.delete(lock_id)
     except HTTPTooManyRequests:
         # We have hit the rate limit for the user, retry when it's reset,
         # according to the reply from the failing API call
