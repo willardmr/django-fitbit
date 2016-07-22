@@ -165,7 +165,6 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
             for minute in intraday:
                 datetime = parser.parse(minute['time'], default=date)
                 utc_datetime = datetime + timedelta(hours=tz_offset)
-                utc_datetime = utc_datetime.replace(tzinfo=utc)
                 value = minute['value']
                 # Don't create unnecessary records
                 if not utils.get_setting('FITAPP_SAVE_INTRADAY_ZERO_VALUES'):
