@@ -164,7 +164,6 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
             logger.info("Date for intraday task: {}".format(date))
             for minute in intraday:
                 datetime = parser.parse(minute['time'], default=date)
-                utc_datetime = datetime + timedelta(hours=tz_offset)
                 value = minute['value']
                 # Don't create unnecessary records
                 if not utils.get_setting('FITAPP_SAVE_INTRADAY_ZERO_VALUES'):
@@ -172,7 +171,7 @@ def get_intraday_data(fitbit_user, cat, resource, date, tz_offset):
                         continue
                 # Create new record or update existing
                 tsd, created = TimeSeriesData.objects.get_or_create(
-                    user=fbuser.user, resource_type=_type, date=utc_datetime,
+                    user=fbuser.user, resource_type=_type, date=datetime,
                     intraday=True)
                 tsd.value = value
                 tsd.save()
