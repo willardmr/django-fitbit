@@ -48,7 +48,6 @@ def unsubscribe(*args, **kwargs):
         raise Reject(exc, requeue=False)
 
 
-@shared_task
 def get_time_series_data(fitbit_user, cat, resource, date=None):
     """ Get the user's time series data, saved in UTC """
 
@@ -61,11 +60,6 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
 
     # Create a lock so we don't try to run the same task multiple times
     sdat = date.strftime('%Y-%m-%d') if date else 'ALL'
-    lock_id = '{0}-lock-{1}-{2}-{3}'.format(__name__, fitbit_user, _type, sdat)
-    if not cache.add(lock_id, 'true', LOCK_EXPIRE):
-        logger.debug('Already retrieving %s data for date %s, user %s' % (
-            _type, fitbit_user, sdat))
-        raise Ignore()
 
     try:
         # Block until we have exclusive update access to this UserFitbit, so
@@ -103,8 +97,6 @@ def get_time_series_data(fitbit_user, cat, resource, date=None):
                     intraday=False)
                 tsd.value = datum['value']
                 tsd.save()
-        # Release the lock
-        cache.delete(lock_id)
     except HTTPTooManyRequests:
         # We have hit the rate limit for the user, retry when it's reset,
         # according to the reply from the failing API call
