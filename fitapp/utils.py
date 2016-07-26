@@ -96,6 +96,16 @@ def get_fitbit_profile(fbuser, key=None):
         return data[key]
     return data
 
+def get_fitbit_profile_oauth1(fbuser, key=None):
+    """
+    Creates a Fitbit API instance and retrieves a user's profile.
+    """
+    fb = create_fitbit(**fbuser.get_user_data())
+    data = fb.user_profile_get()
+    data = data['user']
+    if key:
+        return data[key]
+    return data
 
 def get_setting(name, use_defaults=True):
     """Retrieves the specified setting from the settings file.
