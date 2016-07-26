@@ -83,25 +83,6 @@ def get_fitbit_profile(fbuser, key=None):
     """
     fb = create_fitbit(**fbuser.get_user_data())
     data = fb.user_profile_get()
-
-    # Update the token if necessary. We are making sure we have a valid
-    # access_token and refresh_token next time we request Fitbit data
-    if fb.client.token['access_token'] != fbuser.access_token:
-        fbuser.access_token = fb.client.token['access_token']
-        fbuser.refresh_token = fb.client.token['refresh_token']
-        fbuser.save()
-    
-    data = data['user']
-    if key:
-        return data[key]
-    return data
-
-def get_fitbit_profile_oauth1(fbuser, key=None):
-    """
-    Creates a Fitbit API instance and retrieves a user's profile.
-    """
-    fb = create_fitbit(**fbuser.get_user_data())
-    data = fb.user_profile_get()
     data = data['user']
     if key:
         return data[key]
